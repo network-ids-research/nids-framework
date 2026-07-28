@@ -1,18 +1,11 @@
 import optuna
 import logging
 import numpy as np
-import tensorflow as tf
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from tensorflow.keras.optimizers import Adam
 
 logger = logging.getLogger(__name__)
-
-tf.get_logger().setLevel("ERROR")
 
 
 class DeepLearningTrainer:
@@ -22,8 +15,22 @@ class DeepLearningTrainer:
         self.save_path = Path(self.model_config["save_path"])
         self.best_model = None
         self.input_dim = None
+        self._tf = None
+
+    @property
+    def tf(self):
+        if self._tf is None:
+            import tensorflow as _tf
+            _tf.get_logger().setLevel("ERROR")
+            self._tf = _tf
+        return self._tf
 
     def _build_model(self, trial, input_dim):
+        tf = self.tf
+        from tensorflow.keras.models import Sequential
+        from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
+        from tensorflow.keras.optimizers import Adam
+
         n_layers = trial.suggest_int("n_layers", 1, 3)
         units = trial.suggest_categorical("units", [64, 128, 256])
         dropout = trial.suggest_float("dropout", 0.2, 0.5)
@@ -49,6 +56,8 @@ class DeepLearningTrainer:
         return model
 
     def _objective(self, trial, X_train, y_train, X_val, y_val):
+        from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+
         model = self._build_model(trial, X_train.shape[1])
 
         early_stop = EarlyStopping(
@@ -76,6 +85,8 @@ class DeepLearningTrainer:
         return f1_score(y_val, y_pred)
 
     def train(self, X_train, y_train, X_val=None, y_val=None):
+        from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+
         logger.info("Training Deep Learning model with Optuna...")
         self.input_dim = X_train.shape[1]
 

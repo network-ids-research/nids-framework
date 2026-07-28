@@ -1,1 +1,3 @@
-# src/visualization/__init__.py
+from src.visualization.plots import Plotter
+
+__all__ = ["Plotter"]

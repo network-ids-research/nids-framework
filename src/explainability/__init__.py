@@ -1,1 +1,3 @@
-# src/explainability/__init__.py
+from src.explainability.shap_explainer import SHAPExplainer
+
+__all__ = ["SHAPExplainer"]
