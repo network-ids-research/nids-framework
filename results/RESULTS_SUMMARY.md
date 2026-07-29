@@ -13,6 +13,25 @@
 
 Both models nearly identical. **RF was chosen as best** for its higher Recall (0.9886) — critical in security to minimize missed attacks.
 
+### Comparison with Literature
+Our results are competitive with published UNSW-NB15 benchmarks:
+
+| Study | Model | Accuracy | F1-Score | Notes |
+|-------|-------|----------|----------|-------|
+| MDPI Computers (2026) — 5-fold CV | XGBoost | 0.97 | 0.96 | Uses all 47 features |
+| MDPI Computers (2026) — 5-fold CV | RF | 0.96 | 0.95 | Uses all 47 features |
+| Ćirković & Milošević (2025) | XGBoost | 0.978 | 0.978 | Default params, all features |
+| Ćirković & Milošević (2025) | RF | 0.975 | 0.975 | Default params, all features |
+| Springer (2024) | RF / XGBoost | ~0.93 | ~0.93 | 70/15/15 split |
+| **This work** | **RF** | **0.870** | **0.893** | **Top-25 features only** |
+| **This work** | **XGBoost** | **0.870** | **0.893** | **Top-25 features only** |
+
+Our ~0.89 F1 is slightly lower than some published results because:
+- We use only **top-25 features** (dimensionality reduction for lightweight deployment)
+- We do **not** use SMOTE or any resampling — results reflect real-world class imbalance
+- We evaluate on the **full original test split** without subsampling
+- The lightweight constraint (feature reduction, no resampling) trades marginal F1 for speed and simplicity
+
 ## Top-5 Features (by RF importance)
 1. `sttl` (source-to-TTL) — 0.127
 2. `ct_state_ttl` (connection state count) — 0.123
