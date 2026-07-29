@@ -41,7 +41,10 @@ class SHAPExplainer:
         if isinstance(shap_values, list):
             shap_values = shap_values[1]
 
-        logger.info(f"SHAP values computed for {len(X_sample)} samples")
+        if hasattr(shap_values, "ndim") and shap_values.ndim == 3:
+            shap_values = shap_values[:, :, 1]
+
+        logger.info(f"SHAP values computed for {len(X_sample)} samples, shape={shap_values.shape}")
         return shap_values, X_sample
 
     def summary_plot(self, X: pd.DataFrame, max_display: int = 20):
@@ -61,16 +64,31 @@ class SHAPExplainer:
         if indices is None:
             indices = [0]
 
+        expected_val = self.explainer.expected_value
+        if isinstance(expected_val, (list, np.ndarray)):
+            if hasattr(expected_val, "ndim") and expected_val.ndim == 2:
+                expected_val = expected_val[1]
+            elif hasattr(expected_val, "ndim") and expected_val.ndim == 1 and len(expected_val) > 1:
+                expected_val = expected_val[1]
+            elif isinstance(expected_val, list) and len(expected_val) > 1:
+                expected_val = expected_val[1]
+
         for idx in indices:
             if idx >= len(X_sample):
                 continue
+
+            sv = shap_values[idx]
+            if hasattr(sv, "ndim") and sv.ndim > 1:
+                if sv.shape[-1] == 2:
+                    sv = sv[..., 1]
+                else:
+                    sv = sv.flatten()
+
             plt.figure()
             shap.waterfall_plot(
                 shap.Explanation(
-                    values=shap_values[idx],
-                    base_values=self.explainer.expected_value if not isinstance(
-                        self.explainer.expected_value, (list, np.ndarray)
-                    ) else self.explainer.expected_value[1],
+                    values=sv,
+                    base_values=expected_val,
                     data=X_sample.iloc[idx].values,
                     feature_names=X_sample.columns.tolist()
                 ),
@@ -92,6 +110,9 @@ class SHAPExplainer:
 
         if isinstance(shap_values, list):
             shap_values = shap_values[1]
+
+        if hasattr(shap_values, "ndim") and shap_values.ndim == 3:
+            shap_values = shap_values[:, :, 1]
 
         if len(shap_values.shape) == 1:
             shap_values = shap_values.reshape(1, -1)
