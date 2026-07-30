@@ -37,7 +37,7 @@ def run_pipeline(config: dict, skip_zero_day: bool = False,
     from src.features import FeatureBuilder, FeatureSelector
     from src.models import RandomForestTrainer, XGBoostTrainer, DeepLearningTrainer
     from src.models import ModelPredictor
-    from src.evaluation import MetricsEvaluator, ZeroDaySimulator, Benchmarker
+    from src.evaluation import MetricsEvaluator, ZeroDaySimulator, Benchmarker, ZeroDayConfidenceScore
     from src.explainability import SHAPExplainer
     from src.visualization import Plotter
 
@@ -65,7 +65,7 @@ def run_pipeline(config: dict, skip_zero_day: bool = False,
     # Correct split: split before balancing to avoid data leakage
     train_df, test_df = splitter.split_by_partition(df)
     X_train, y_train, attack_cat_train = cleaner.separate_features_target(train_df)
-    X_test, y_test, _ = cleaner.separate_features_target(test_df)
+    X_test, y_test, attack_cat_test = cleaner.separate_features_target(test_df)
 
     logger.info(f"Final train: {X_train.shape}, test: {X_test.shape}")
     logger.info(f"Train attack distribution:\n{y_train.value_counts()}")
@@ -215,6 +215,35 @@ def run_pipeline(config: dict, skip_zero_day: bool = False,
     logger.info(f"Sample alert explanation:\n{alert}")
 
     # =========================================================================
+    # Phase 5.5: Zero-Day Confidence Score (ZDCS) Evaluation
+    # =========================================================================
+    logger.info("=" * 60)
+    logger.info("PHASE 5.5: Zero-Day Confidence Score (ZDCS)")
+    logger.info("=" * 60)
+
+    zdcs_eval = ZeroDayConfidenceScore(alpha=0.5)
+    zdcs_df = zdcs_eval.evaluate_by_category(
+        best_model, explainer,
+        X_train, y_train, X_test, attack_cat_test,
+        max_ref=300, max_per_cat=100,
+    )
+
+    zdcs_df.to_csv("results/tables/zdcs_results.csv", index=False)
+    logger.info("ZDCS by category computed. Head:\n%s", zdcs_df.groupby("attack_category")["zdcs"].describe().to_string())
+
+    zero_day_f1 = None
+    try:
+        zd = pd.read_csv("results/tables/zero_day_results.csv")
+        if "f1" in zd.columns and "held_out_attack" in zd.columns:
+            zero_day_f1 = zd[["held_out_attack", "f1"]]
+            logger.info("Loaded existing zero-day F1 scores for ZDCS correlation")
+    except (FileNotFoundError, KeyError):
+        pass
+
+    plotter.zdcs_comparison(zdcs_df, zero_day_f1)
+    plotter.zdcs_roc(zdcs_df)
+
+    # =========================================================================
     # Phase 6: Resource & Speed Benchmarking
     # =========================================================================
     if not skip_benchmark:
@@ -242,6 +271,7 @@ def run_pipeline(config: dict, skip_zero_day: bool = False,
     logger.info("Results saved to:")
     logger.info("  - results/tables/model_comparison.csv")
     logger.info("  - results/tables/feature_importance.csv")
+    logger.info("  - results/tables/zdcs_results.csv")
     logger.info("  - results/figures/")
     if not skip_zero_day:
         logger.info("  - results/tables/zero_day_results.csv")

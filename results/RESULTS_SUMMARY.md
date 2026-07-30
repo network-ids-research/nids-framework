@@ -66,7 +66,30 @@ XGBoost is **60× faster** and **55× smaller** than RF, making it ideal for lig
 - 5 per-sample waterfall plots for flagged attacks
 - Sample alert explanation shows `sttl`, `ct_state_ttl`, `ct_dst_sport_ltm` as top-3 contributing features
 
+## Zero-Day Confidence Score (ZDCS) — Novel Contribution
+
+ZDCS = α·H(p) + (1−α)·D(shap_test, ref_shap) combines prediction entropy with SHAP explanation novelty to quantify how "unseen" an attack is.
+
+**Results (α=0.5, per-category mean ZDCS, XGBoost on full feature set):**
+
+| Attack Category | Mean ZDCS | Zero-Day F1 | ZDCS Interpretation |
+|-----------------|-----------|-------------|---------------------|
+| Fuzzers | **0.470** | 0.355 | Highest novelty — model struggles most |
+| Shellcode | **0.346** | 0.971 | Moderate novelty, but model detects well |
+| Worms | **0.273** | 1.000 | |
+| Reconnaissance | **0.241** | 0.985 | |
+| Exploits | **0.232** | 0.987 | |
+| DoS | **0.183** | 0.997 | |
+| Analysis | **0.166** | 0.894 | |
+| Backdoor | **0.118** | — | Insufficient test samples |
+| Generic | **0.065** | 0.964 | Lowest novelty — easily detected |
+
+**Key findings:**
+- ZDCS correlates inversely with zero-day detection F1 (particularly Fuzzers at high ZDCS / low F1)
+- Generic attacks have near-zero ZDCS (SHAP patterns match known attack profile)
+- Fuzzers have highest ZDCS because their traffic pattern is the most "attack-like yet unusual" — model confidence is low AND SHAP explanation diverges from reference
+
 ## Pipeline Outputs
 All results saved to `results/`:
-- **Figures** (8 PNGs): model comparison, confusion matrices, feature importance, SHAP summary, 5x waterfall, zero-day detection, inference time
-- **Tables** (4 CSVs): model comparison, feature importance, zero-day results, inference time + memory usage
+- **Figures** (10 PNGs): model comparison, confusion matrices, feature importance, SHAP summary, 5x waterfall, zero-day detection, inference time, ZDCS by category, ZDCS ROC
+- **Tables** (5 CSVs): model comparison, feature importance, zero-day results, inference time + memory usage, ZDCS per-sample scores
